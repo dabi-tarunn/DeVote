@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<head>
+    <meta charset="utf-8" />
+    <script>(function(i,s,o,g,r,a,m){i["GoogleAnalyticsObject"]=r;i[r]=i[r]||function(){(i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)})(window,document,"script","https://www.google-analytics.com/analytics.js","ga");ga("create", "UA-105319773-1", {"cookieDomain":"auto"});ga("set", "anonymizeIp", true);ga("send", "pageview");</script>
+    <title >Vote</title>
+    <link rel="stylesheet" type="text/css" href="candidateElection.css">
+	<link href='https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css' rel='stylesheet' type='text/css'>
+	<link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.10.18/css/dataTables.bootstrap.min.css">
+	<script src="https://code.jquery.com/jquery-3.3.1.min.js" integrity="sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8=" crossorigin="anonymous"></script>
+	<script src="https://cdn.jsdelivr.net/gh/ethereum/web3.js@1.0.0-beta.34/dist/web3.js"></script>
+	<script type="text/javascript" charset="utf8" src="https://cdn.datatables.net/1.10.18/js/jquery.dataTables.min.js"></script>
+	<script type="text/javascript" charset="utf8" src="https://cdn.datatables.net/1.10.18/js/dataTables.bootstrap.min.js"></script>
+</head>
+<body>
+    <div class="container">
+
+        <h1 id="vote">Vote</h1>
+        
+        <div id="panels_ballot">
+               
+           	<div class="panel panel-default">
+               	<div class="panel-heading">Ballot Contract</div>
+               	<div class="panel-body">  
+                   	<div class="form-group">
+               			<label for="txtBallotAddress">Ballot Address</label>
+               			<input id="txtBallotAddress" class="form-control" type="text" value="">
+                   	</div>
+        
+                   	<div class="form-group">
+                       	<input id="btnGo" class="btn btn-primary" type="button" value="Go" />
+                       	<img id="loader" src="/Spinner-1s-200px.svg">
+                   	</div>
+               	</div>
+       	    </div>
+       	    
+       	</div>
+        	
+        <div id="panels_contract">
+    
+            <div class="panel panel-default">
+               	<div class="panel-heading">Contract Details</div>
+               	<div class="panel-body">
+   
+               		<div id="lbl_state"></div>
+               		<div id="lbl_officialname"></div>
+               		<div id="lbl_proposal"></div>
+               		<div id="lbl_result"></div>
+    
+                    <div id="section_voting">
+                        <hr />
+               		    <div id="lbl_voter"></div>
+                       	<div><b>Your vote</b></div>   
+                        <input id="btnindx" class="form-control" type="number" placeholder = "Enter The Candidate Index" />
+               	        <input id="btnYes" class="btn btn-success" type="button" value="Vote" />
+               	        <!-- <input id="btnNo" class="btn btn-danger" type="button" value="No" /> -->
+               	        <img id="loaderChoice" src="/Spinner-1s-200px.svg">
+               	        <div id="lblVoted"></div>
+                    </div>
+               	</div>
+           	</div>    
+        </div>
+
+    </div>
+
+ 
+    <script>
+        var web3 = new Web3();
+        var accountaddress;
+        var ballotContract;
+        var ballotByteCode;
+        var Ballot;
+        var ballotABI = [
+	{
+		"inputs": [
+			{
+				"internalType": "string",
+				"name": "_ballotOfficialName",
+				"type": "string"
+			},
+			{
+				"internalType": "bytes32[]",
+				"name": "_proposalNames",
+				"type": "bytes32[]"
+			}
+		],
+		"stateMutability": "nonpayable",
+		"type": "constructor"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": false,
+				"internalType": "address",
+				"name": "voter",
+				"type": "address"
+			}
+		],
+		"name": "voteDone",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": false,
+				"internalType": "bytes32",
+				"name": "finalResult",
+				"type": "bytes32"
+			}
+		],
+		"name": "voteEnded",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [],
+		"name": "voteStarted",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": false,
+				"internalType": "address",
+				"name": "voter",
+				"type": "address"
+			}
+		],
+		"name": "voterAdded",
+		"type": "event"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "_voterAddress",
+				"type": "address"
+			},
+			{
+				"internalType": "string",
+				"name": "_voterName",
+				"type": "string"
+			}
+		],
+		"name": "addVoter",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "ballotOfficialAddress",
+		"outputs": [
+			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "ballotOfficialName",
+		"outputs": [
+			{
+				"internalType": "string",
+				"name": "",
+				"type": "string"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "_choice",
+				"type": "uint256"
+			}
+		],
+		"name": "doVote",
+		"outputs": [
+			{
+				"internalType": "bool",
+				"name": "voted",
+				"type": "bool"
+			}
+		],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "endVote",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "finalResult",
+		"outputs": [
+			{
+				"internalType": "bytes32",
+				"name": "",
+				"type": "bytes32"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "proposalSize",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"name": "proposals",
+		"outputs": [
+			{
+				"internalType": "bytes32",
+				"name": "name",
+				"type": "bytes32"
+			},
+			{
+				"internalType": "uint256",
+				"name": "voteCount",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "startVote",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "state",
+		"outputs": [
+			{
+				"internalType": "enum Ballot.State",
+				"name": "",
+				"type": "uint8"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "totalVote",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "totalVoter",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
+			}
+		],
+		"name": "voterRegister",
+		"outputs": [
+			{
+				"internalType": "string",
+				"name": "voterName",
+				"type": "string"
+			},
+			{
+				"internalType": "bool",
+				"name": "voted",
+				"type": "bool"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "winningName",
+		"outputs": [
+			{
+				"internalType": "bytes32",
+				"name": "winningName_",
+				"type": "bytes32"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "winningProposal",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "winningProposal_",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	}
+];
+        var voterTable;
+        
+        $( document ).ready(function() {
+            $('#panels_contract').hide();
+        });
+ 
+        window.addEventListener('load', async () => {
+
+            // Modern dapp browsers...
+        	if (window.ethereum) {
+        	    window.web3 = new Web3(ethereum);
+        		try {
+        			// Request account access if needed
+        			await ethereum.enable();
+        			// Acccounts now exposed
+        			accountaddress = web3.givenProvider.selectedAddress;
+                    ballotContract = new web3.eth.Contract(ballotABI);
+                    ballotByteCode = '60806040526000600155600060035560006004553480156200002057600080fd5b5060405162001e8a38038062001e8a833981810160405281019062000046919062000418565b33600560006101000a81548173ffffffffffffffffffffffffffffffffffffffff021916908373ffffffffffffffffffffffffffffffffffffffff1602179055508160069081620000989190620006e8565b506000600960006101000a81548160ff02191690836002811115620000c257620000c1620007cf565b5b021790555060005b81518110156200015e5760006040518060400160405280848481518110620000f757620000f6620007fe565b5b602002602001015181526020016000815250908060018154018082558091505060019003906000526020600020906002020160009091909190915060008201518160000155602082015181600101555050808062000155906200085c565b915050620000ca565b5080516001819055505050620008a9565b6000604051905090565b600080fd5b600080fd5b600080fd5b600080fd5b6000601f19601f8301169050919050565b7f4e487b7100000000000000000000000000000000000000000000000000000000600052604160045260246000fd5b620001d8826200018d565b810181811067ffffffffffffffff82111715620001fa57620001f96200019e565b5b80604052505050565b60006200020f6200016f565b90506200021d8282620001cd565b919050565b600067ffffffffffffffff82111562000240576200023f6200019e565b5b6200024b826200018d565b9050602081019050919050565b60005b83811015620002785780820151818401526020810190506200025b565b60008484015250505050565b60006200029b620002958462000222565b62000203565b905082815260208101848484011115620002ba57620002b962000188565b5b620002c784828562000258565b509392505050565b600082601f830112620002e757620002e662000183565b5b8151620002f984826020860162000284565b91505092915050565b600067ffffffffffffffff82111562000320576200031f6200019e565b5b602082029050602081019050919050565b600080fd5b6000819050919050565b6200034b8162000336565b81146200035757600080fd5b50565b6000815190506200036b8162000340565b92915050565b600062000388620003828462000302565b62000203565b90508083825260208201905060208402830185811115620003ae57620003ad62000331565b5b835b81811015620003db5780620003c688826200035a565b845260208401935050602081019050620003b0565b5050509392505050565b600082601f830112620003fd57620003fc62000183565b5b81516200040f84826020860162000371565b91505092915050565b6000806040838503121562000432576200043162000179565b5b600083015167ffffffffffffffff8111156200045357620004526200017e565b5b6200046185828601620002cf565b925050602083015167ffffffffffffffff8111156200048557620004846200017e565b5b6200049385828601620003e5565b9150509250929050565b600081519050919050565b7f4e487b7100000000000000000000000000000000000000000000000000000000600052602260045260246000fd5b60006002820490506001821680620004f057607f821691505b602082108103620005065762000505620004a8565b5b50919050565b60008190508160005260206000209050919050565b60006020601f8301049050919050565b600082821b905092915050565b600060088302620005707fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff8262000531565b6200057c868362000531565b95508019841693508086168417925050509392505050565b6000819050919050565b6000819050919050565b6000620005c9620005c3620005bd8462000594565b6200059e565b62000594565b9050919050565b6000819050919050565b620005e583620005a8565b620005fd620005f482620005d0565b8484546200053e565b825550505050565b600090565b6200061462000605565b62000621818484620005da565b505050565b5b8181101562000649576200063d6000826200060a565b60018101905062000627565b5050565b601f821115620006985762000662816200050c565b6200066d8462000521565b810160208510156200067d578190505b620006956200068c8562000521565b83018262000626565b50505b505050565b600082821c905092915050565b6000620006bd600019846008026200069d565b1980831691505092915050565b6000620006d88383620006aa565b9150826002028217905092915050565b620006f3826200049d565b67ffffffffffffffff8111156200070f576200070e6200019e565b5b6200071b8254620004d7565b620007288282856200064d565b600060209050601f8311600181146200076057600084156200074b578287015190505b620007578582620006ca565b865550620007c7565b601f19841662000770866200050c565b60005b828110156200079a5784890151825560018201915060208501945060208101905062000773565b86831015620007ba5784890151620007b6601f891682620006aa565b8355505b6001600288020188555050505b505050505050565b7f4e487b7100000000000000000000000000000000000000000000000000000000600052602160045260246000fd5b7f4e487b7100000000000000000000000000000000000000000000000000000000600052603260045260246000fd5b7f4e487b7100000000000000000000000000000000000000000000000000000000600052601160045260246000fd5b6000620008698262000594565b91507fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff82036200089e576200089d6200082d565b5b600182019050919050565b6115d180620008b96000396000f3fe608060405234801561001057600080fd5b50600436106100f55760003560e01c80639094974711610097578063d9e95a9811610066578063d9e95a9814610254578063de975d1814610270578063f1cea4c71461028e578063f3a8286f146102ac576100f5565b806390949747146101dd578063af154087146101fb578063b92239461461022c578063c19d93fb14610236576100f5565b80631f9ff6d7116100d35780631f9ff6d7146101795780634c0a6af014610197578063609ff1bd146101a15780636332abc9146101bf576100f5565b8063013cf08b146100fa578063124258c61461012b5780631e7b19241461015b575b600080fd5b610114600480360381019061010f9190610d0b565b6102ca565b604051610122929190610d60565b60405180910390f35b61014560048036038101906101409190610d0b565b6102fe565b6040516101529190610da4565b60405180910390f35b6101636105cb565b6040516101709190610dbf565b60405180910390f35b6101816105d1565b60405161018e9190610dda565b60405180910390f35b61019f61064b565b005b6101a9610740565b6040516101b69190610dbf565b60405180910390f35b6101c7610848565b6040516101d49190610dbf565b60405180910390f35b6101e561084e565b6040516101f29190610e36565b60405180910390f35b61021560048036038101906102109190610e7d565b610874565b604051610223929190610f3a565b60405180910390f35b61023461092d565b005b61023e610a3d565b60405161024b9190610fe1565b60405180910390f35b61026e60048036038101906102699190611131565b610a50565b005b610278610bdb565b604051610285919061118d565b60405180910390f35b610296610c69565b6040516102a39190610dbf565b60405180910390f35b6102b4610c6f565b6040516102c19190610dda565b60405180910390f35b600081815481106102da57600080fd5b90600052602060002090600202016000915090508060000154908060010154905082565b6000600180600281111561031557610314610f6a565b5b600960009054906101000a900460ff16600281111561033757610336610f6a565b5b1461034157600080fd5b60006001841080610356575060008054905084115b1561036457809250506105c5565b6000600860003373ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff16815260200190815260200160002060000180546103b3906111de565b9050141580156104105750600860003373ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff16815260200190815260200160002060010160009054906101000a900460ff16155b15610589576001600860003373ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff16815260200190815260200160002060010160006101000a81548160ff021916908315150217905550610478610c75565b33816000019073ffffffffffffffffffffffffffffffffffffffff16908173ffffffffffffffffffffffffffffffffffffffff16815250508481602001818152505060006001866104c9919061123e565b815481106104da576104d9611272565b5b906000526020600020906002020160010160008154809291906104fc906112a1565b91905055508060076000600454815260200190815260200160002060008201518160000160006101000a81548173ffffffffffffffffffffffffffffffffffffffff021916908373ffffffffffffffffffffffffffffffffffffffff160217905550602082015181600101559050506004600081548092919061057e906112a1565b919050555060019150505b7f55c65cf9526efdf6c2252fe9757889dbd93e10172cad0f2edb1df619c88dbf7d336040516105b89190610e36565b60405180910390a1809250505b50919050565b60015481565b6000806105dc610740565b0361060c577f4e6f2057696e6e6572000000000000000000000000000000000000000000000060001b9050610648565b60006001610618610740565b610622919061123e565b8154811061063357610632611272565b5b90600052602060002090600202016000015490505b90565b60008060028111156106605761065f610f6a565b5b600960009054906101000a900460ff16600281111561068257610681610f6a565b5b1461068c57600080fd5b600560009054906101000a900473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff163373ffffffffffffffffffffffffffffffffffffffff16146106e657600080fd5b6001600960006101000a81548160ff0219169083600281111561070c5761070b610f6a565b5b02179055507fd0dc01800a369fef30d3fced5275b8b916549867622e79efca5245c479fda4ea60405160405180910390a150565b6000806000905060005b6000805490508110156107cf57816000828154811061076c5761076b611272565b5b90600052602060002090600202016001015411156107bc576000818154811061079857610797611272565b5b90600052602060002090600202016001015491506001816107b991906112e9565b92505b80806107c7906112a1565b91505061074a565b506000805b6000805490508110156108345760008082815481106107f6576107f5611272565b5b906000526020600020906002020160010154905083810361082057828061081c906112a1565b9350505b50808061082c906112a1565b9150506107d4565b50600181111561084357600092505b505090565b60035481565b600560009054906101000a900473ffffffffffffffffffffffffffffffffffffffff1681565b6008602052806000526040600020600091509050806000018054610897906111de565b80601f01602080910402602001604051908101604052809291908181526020018280546108c3906111de565b80156109105780601f106108e557610100808354040283529160200191610910565b820191906000526020600020905b8154815290600101906020018083116108f357829003601f168201915b5050505050908060010160009054906101000a900460ff16905082565b600180600281111561094257610941610f6a565b5b600960009054906101000a900460ff16600281111561096457610963610f6a565b5b1461096e57600080fd5b600560009054906101000a900473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff163373ffffffffffffffffffffffffffffffffffffffff16146109c857600080fd5b6002600960006101000a81548160ff021916908360028111156109ee576109ed610f6a565b5b02179055506109fb6105d1565b6002819055507f0ac407297d42fae1c68c16e064ba6cd3c963854e1531f708e85b1bf9bdae85d2600254604051610a329190610dda565b60405180910390a150565b600960009054906101000a900460ff1681565b6000806002811115610a6557610a64610f6a565b5b600960009054906101000a900460ff166002811115610a8757610a86610f6a565b5b14610a9157600080fd5b600560009054906101000a900473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff163373ffffffffffffffffffffffffffffffffffffffff1614610aeb57600080fd5b610af3610ca5565b828160000181905250600081602001901515908115158152505080600860008673ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff1681526020019081526020016000206000820151816000019081610b6291906114c9565b5060208201518160010160006101000a81548160ff02191690831515021790555090505060036000815480929190610b99906112a1565b91905055507fb9e5f9042e6c6eb94817f660cfa81afea9585e59d72bfc3348a2305cbd33e13384604051610bcd9190610e36565b60405180910390a150505050565b60068054610be8906111de565b80601f0160208091040260200160405190810160405280929190818152602001828054610c14906111de565b8015610c615780601f10610c3657610100808354040283529160200191610c61565b820191906000526020600020905b815481529060010190602001808311610c4457829003601f168201915b505050505081565b60045481565b60025481565b6040518060400160405280600073ffffffffffffffffffffffffffffffffffffffff168152602001600081525090565b6040518060400160405280606081526020016000151581525090565b6000604051905090565b600080fd5b600080fd5b6000819050919050565b610ce881610cd5565b8114610cf357600080fd5b50565b600081359050610d0581610cdf565b92915050565b600060208284031215610d2157610d20610ccb565b5b6000610d2f84828501610cf6565b91505092915050565b6000819050919050565b610d4b81610d38565b82525050565b610d5a81610cd5565b82525050565b6000604082019050610d756000830185610d42565b610d826020830184610d51565b9392505050565b60008115159050919050565b610d9e81610d89565b82525050565b6000602082019050610db96000830184610d95565b92915050565b6000602082019050610dd46000830184610d51565b92915050565b6000602082019050610def6000830184610d42565b92915050565b600073ffffffffffffffffffffffffffffffffffffffff82169050919050565b6000610e2082610df5565b9050919050565b610e3081610e15565b82525050565b6000602082019050610e4b6000830184610e27565b92915050565b610e5a81610e15565b8114610e6557600080fd5b50565b600081359050610e7781610e51565b92915050565b600060208284031215610e9357610e92610ccb565b5b6000610ea184828501610e68565b91505092915050565b600081519050919050565b600082825260208201905092915050565b60005b83811015610ee4578082015181840152602081019050610ec9565b60008484015250505050565b6000601f19601f8301169050919050565b6000610f0c82610eaa565b610f168185610eb5565b9350610f26818560208601610ec6565b610f2f81610ef0565b840191505092915050565b60006040820190508181036000830152610f548185610f01565b9050610f636020830184610d95565b9392505050565b7f4e487b7100000000000000000000000000000000000000000000000000000000600052602160045260246000fd5b60038110610faa57610fa9610f6a565b5b50565b6000819050610fbb82610f99565b919050565b6000610fcb82610fad565b9050919050565b610fdb81610fc0565b82525050565b6000602082019050610ff66000830184610fd2565b92915050565b600080fd5b600080fd5b7f4e487b7100000000000000000000000000000000000000000000000000000000600052604160045260246000fd5b61103e82610ef0565b810181811067ffffffffffffffff8211171561105d5761105c611006565b5b80604052505050565b6000611070610cc1565b905061107c8282611035565b919050565b600067ffffffffffffffff82111561109c5761109b611006565b5b6110a582610ef0565b9050602081019050919050565b82818337600083830152505050565b60006110d46110cf84611081565b611066565b9050828152602081018484840111156110f0576110ef611001565b5b6110fb8482856110b2565b509392505050565b600082601f83011261111857611117610ffc565b5b81356111288482602086016110c1565b91505092915050565b6000806040838503121561114857611147610ccb565b5b600061115685828601610e68565b925050602083013567ffffffffffffffff81111561117757611176610cd0565b5b61118385828601611103565b9150509250929050565b600060208201905081810360008301526111a78184610f01565b905092915050565b7f4e487b7100000000000000000000000000000000000000000000000000000000600052602260045260246000fd5b600060028204905060018216806111f657607f821691505b602082108103611209576112086111af565b5b50919050565b7f4e487b7100000000000000000000000000000000000000000000000000000000600052601160045260246000fd5b600061124982610cd5565b915061125483610cd5565b925082820390508181111561126c5761126b61120f565b5b92915050565b7f4e487b7100000000000000000000000000000000000000000000000000000000600052603260045260246000fd5b60006112ac82610cd5565b91507fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff82036112de576112dd61120f565b5b600182019050919050565b60006112f482610cd5565b91506112ff83610cd5565b92508282019050808211156113175761131661120f565b5b92915050565b60008190508160005260206000209050919050565b60006020601f8301049050919050565b600082821b905092915050565b60006008830261137f7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff82611342565b6113898683611342565b95508019841693508086168417925050509392505050565b6000819050919050565b60006113c66113c16113bc84610cd5565b6113a1565b610cd5565b9050919050565b6000819050919050565b6113e0836113ab565b6113f46113ec826113cd565b84845461134f565b825550505050565b600090565b6114096113fc565b6114148184846113d7565b505050565b5b818110156114385761142d600082611401565b60018101905061141a565b5050565b601f82111561147d5761144e8161131d565b61145784611332565b81016020851015611466578190505b61147a61147285611332565b830182611419565b50505b505050565b600082821c905092915050565b60006114a060001984600802611482565b1980831691505092915050565b60006114b9838361148f565b9150826002028217905092915050565b6114d282610eaa565b67ffffffffffffffff8111156114eb576114ea611006565b5b6114f582546111de565b61150082828561143c565b600060209050601f8311600181146115335760008415611521578287015190505b61152b85826114ad565b865550611593565b601f1984166115418661131d565b60005b8281101561156957848901518255600182019150602085019450602081019050611544565b868310156115865784890151611582601f89168261148f565b8355505b6001600288020188555050505b50505050505056fea264697066735822122034f4915d11702ade454fe19de95a8e5c19fcc228937059ee30a5e9a31d2dedac64736f6c63430008100033';
+        		    
+        		} catch (error) {
+        			// User denied account access...
+        		}
+        	}
+        	// Legacy dapp browsers...
+        	else if (window.web3) {
+        			window.web3 = new Web3(web3.currentProvider);
+        			// Acccounts always exposed
+        			web3.eth.sendTransaction({/* ... */});
+        	}
+        	// Non-dapp browsers...
+        	else {
+        			console.log('Non-Ethereum browser detected. You should consider trying MetaMask!');
+        	}
+        });
+        function hex_to_ascii(str1)
+		{
+			var hex  = str1.toString();
+			var str = '';
+			for (var n = 0; n < hex.length; n += 2) {
+				str += String.fromCharCode(parseInt(hex.substr(n, 2), 16));
+			}
+			return str;
+		}
+        var num=1;
+        function getContract(_ballotContractAddress){
+            Ballot = new web3.eth.Contract(ballotABI, _ballotContractAddress);
+        	Ballot.methods.ballotOfficialName().call().then((result) => {
+                $("#lbl_officialname").html("<b>Ballot Official Name: </b>" + result);
+            });
+
+            
+            Ballot.methods.proposalSize().call().then((result) => {
+                for(var i=0;i<result;i++)
+                {
+                    Ballot.methods.proposals(i).call().then((result1) => {
+                    console.log(result1[0]);
+                    var gg=  hex_to_ascii(result1[0]);
+                    if(gg.length!=0)
+                    {   
+                        var html=`<span><b>Candidate ${num}: </b>  ${gg}</span><br>`;
+                        var form=document.getElementById("lbl_proposal");
+                        form.innerHTML+=html;
+                        num++;
+                    }
+                    //$("#lbl_proposal").html("<b>Proposal: </b>" + result);
+                });
+                }
+            });
+
+            // console.log(sz);
+
+            
+
+            
+            loadFinalResult(Ballot);
+            loadState(Ballot);
+            
+            watchVoteStarted(); //start watching for events
+            watchVoteEnd(); //start watching for vote end
+            watchVoteDone(); //start watching for vote done
+            
+            $('#panels_contract').show();
+            $("#loader").hide();
+            $("#section_voting").hide();
+
+        }
+        
+//-------------- Watching Section -------------------//
+        
+        function watchVoteEnd(){
+            Ballot.events.voteEnded({
+            }, (error, event) => { 
+                console.log(event.returnValues.finalResult);
+                loadState(Ballot);
+                loadFinalResult(Ballot);
+            })
+            .on('data', (event) => {
+
+            })
+            .on('changed', (event) => {
+                // remove event from local database
+            })
+            .on('error', console.error)                      
+        }
+        
+        function watchVoteStarted(){
+            Ballot.events.voteStarted({
+            }, (error, event) => { })
+            .on('data', (event) => {
+                console.log(event.event); // same results as the optional callback above
+                loadState(Ballot);
+            })
+            .on('changed', (event) => {
+                // remove event from local database
+            })
+            .on('error', console.error)
+        }
+
+        function watchVoteDone(){
+            Ballot.events.voteDone({
+            }, (error, event) => { 
+                var strEventAddress = event.returnValues.voter.toString().toLowerCase();
+                var strAccountAddress = accountaddress.toString().toLowerCase();
+                
+                console.log(strEventAddress);
+                console.log(strAccountAddress);
+                console.log(strEventAddress.valueOf() == strAccountAddress.valueOf())
+                
+                if (strEventAddress.valueOf() == strAccountAddress.valueOf()) {
+                    console.log("yes");
+                    $("#loaderChoice").hide();
+                    loadState(Ballot);
+                    console.log("b");   
+                }
+            })
+            .on('data', (event) => {
+
+            })
+            .on('changed', (event) => {
+                // remove event from local database
+            })
+            .on('error', console.error)           
+        }
+
+//-------------- Loading Section -------------------//
+
+        async function loadFinalResult(myBallot){
+            myBallot.methods.finalResult().call().then((result) => {
+				var gg=hex_to_ascii(result);
+                $("#lbl_result").html("<b>Result: </b>" + gg);
+            });
+        }
+        
+        async function loadState(myBallot){
+            myBallot.methods.state().call().then((result) => {
+                if (result == 0){
+                    $("#lbl_state").addClass("label label-primary");
+                    $("#lbl_state").html("Created"); 
+                }
+                else if (result == 1){
+                    $("#lbl_state").addClass("label label-success");
+                    $("#lbl_state").html("Voting"); 
+                }                
+                else if (result == 2){
+                    $("#lbl_state").addClass("label label-danger");
+                    $("#lbl_state").html("Ended");                    
+                } 
+                loadVoter(myBallot, accountaddress, result);
+                return result;
+            });
+        }
+        
+        async function loadVoter(myBallot, _myVoterAddress, _state){
+            myBallot.methods.voterRegister(_myVoterAddress).call().then((result) => {
+                if (result.voterName != "" && _state == 1) {
+
+                    $("#loaderChoice").hide();
+                    $("#section_voting").show();
+                    
+                    $("#lbl_voter").html("<b>Your Name: </b>" + result.voterName);
+                    console.log(result.voted);
+                    if (result.voted){
+                        $("#btnYes").hide();
+                        $("#btnNo").hide(); 
+                        $("#lblVoted").html("<span class='label label-primary'>Voted</span>");
+                    }
+                    else {
+                        $("#btnYes").show();
+                        $("#btnNo").show();                        
+                    }
+                }
+                else{
+                    $("#btnYes").hide();
+                    $("#btnNo").hide();                     
+                }
+            } );
+
+        }
+        
+//-------------- Button Section -------------------//
+
+        $("#btnYes").click(async function(){
+            $("#loaderChoice").show();
+            
+            //estimate first
+            var choice= $("#btnindx").val();
+            console.log(choice);
+            var mygas;
+            	Ballot.methods.doVote(choice).estimateGas({from: accountaddress})
+            .then(function(gasAmount){
+                mygas = gasAmount;
+            })
+            
+        	Ballot.methods.doVote(choice).send({
+                from: accountaddress,
+                gas: mygas, 
+                gasPrice: web3.eth.gasPrice      	    
+        	})
+            .on('transactionHash', (hash) => {
+                console.log("a");
+            })
+            .on('receipt', (receipt) => {
+                console.log("done");
+            })
+            .on('confirmation', (confirmationNumber, receipt) => {
+                console.log("c");
+            })
+            .on('error', console.error);
+        });
+
+        // $("#btnNo").click(async function(){
+        //     $("#loaderChoice").show();
+
+        //     //estimate first
+        //     var mygas;
+        //     	Ballot.methods.doVote(false).estimateGas({from: accountaddress})
+        //     .then(function(gasAmount){
+        //         mygas = gasAmount;
+        //     })
+            
+        // 	Ballot.methods.doVote(false).send({
+        //         from: accountaddress,
+        //         gas: mygas, 
+        //         gasPrice: web3.eth.gasPrice       	    
+        // 	})
+        //     .on('transactionHash', (hash) => {
+        //         console.log("a");
+        //     })
+        //     .on('receipt', (receipt) => {
+        //         console.log("done");
+        //     })
+        //     .on('confirmation', (confirmationNumber, receipt) => {
+        //         console.log("c");
+        //     })
+        //     .on('error', console.error);
+        // });    
+    
+        $("#btnGo").click(async function() {	
+            $("#loader").show();
+            var i = 0;
+            var _ballotAddress = $("#txtBallotAddress").val();
+            getContract(_ballotAddress);
+        });
+        
+
+    </script>
+
+</body>
+</html>

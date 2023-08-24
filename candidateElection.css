@@ -1,0 +1,61 @@
+#loader {
+	height: 40px;
+    display:none;
+}
+
+#loaderStartVote {
+	height: 40px;
+    display:none;
+}
+
+#loaderChoice{
+	height: 40px;
+    display:none;
+}
+
+#loaderNewVoter {
+	height: 40px;
+    display:none;
+}
+
+.custom-file-upload {
+    border: 1px solid #ccc;
+    display: inline-block;
+    padding: 6px 12px;
+    cursor: pointer;
+}
+
+#addbtn{
+    margin-top: 5px;
+    background-color: rgb(111, 111, 111);
+    width: 32px;
+    height: 26px;
+    padding: 3px;
+    font-size: 13px;
+
+}
+
+/* #btnGo{
+    
+    width: 80px;
+    height: 42px;
+    text-align: center;
+    font-size: 24px;
+    padding: 3px;
+    border: none;
+
+} */
+#btnGo:hover{
+    background-color: rgb(65, 62, 62);
+}
+
+#btnYes{
+    margin-top: 5px;
+}
+
+#vote{
+    text-align: center;
+}
+#ballot{
+    text-align: center;
+}
